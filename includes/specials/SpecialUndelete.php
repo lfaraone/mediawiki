@@ -1308,8 +1308,7 @@ class SpecialUndelete extends SpecialPage {
 		# Show relevant lines from the deletion log:
 		$deleteLogPage = new LogPage( 'delete' );
 		$out->addHTML( Xml::element( 'h2', null, $deleteLogPage->getName()->text() ) . "\n" );
-		LogEventsList::showLogExtract( $out, 'delete', $this->mTargetObj, '',
-			array( 'flags' => LogEventsList::USE_CHECKBOXES ) );
+		LogEventsList::showLogExtract( $out, 'delete', $this->mTargetObj, '');
 		# Show relevant lines from the suppression log:
 		$suppressLogPage = new LogPage( 'suppress' );
 		if ( $this->getUser()->isAllowed( 'suppressionlog' ) ) {
