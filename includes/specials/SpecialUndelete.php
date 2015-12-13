@@ -842,16 +842,16 @@ class SpecialUndelete extends SpecialPage {
 		$request = $this->getRequest();
 		$archive = new PageArchive( $this->mTargetObj );
 
-		$query = 'action=revisiondelete';
+		$query = 'type=revision&ids=';
 		foreach ( $request->getValues() as $key => $val ) {
 			$matches = array();
-			if ( preg_match( '/^ts(\d{14})$/', $key, $matches ) ) {	
+			if ( preg_match( '/^ts(\d{14})$/', $key, $matches ) ) {
 					$rev = $archive->getRevision( $matches[1] );
-					$query .= '&ids[' . $rev->getId() . ']=1';
-				}
+					$query .= $rev->getId() . ',';
 			}
-			
-		$url =  $rev->getTitle()->getFullURL($query);
+		}
+		$query .= '&target=' . $rev->getTitle();
+		$url =  SpecialPage::getTitleFor('RevisionDelete')->getFullURL($query);
 		$this->getOutput()->redirect( $url );
 	}
 
@@ -1309,13 +1309,13 @@ class SpecialUndelete extends SpecialPage {
 		$deleteLogPage = new LogPage( 'delete' );
 		$out->addHTML( Xml::element( 'h2', null, $deleteLogPage->getName()->text() ) . "\n" );
 		LogEventsList::showLogExtract( $out, 'delete', $this->mTargetObj, '',
-			array( 'flags' => LogEventsList::USE_REVDEL_CHECKBOXES ) );
+			array( 'flags' => LogEventsList::USE_CHECKBOXES ) );
 		# Show relevant lines from the suppression log:
 		$suppressLogPage = new LogPage( 'suppress' );
 		if ( $this->getUser()->isAllowed( 'suppressionlog' ) ) {
 			$out->addHTML( Xml::element( 'h2', null, $suppressLogPage->getName()->text() ) . "\n" );
 			LogEventsList::showLogExtract( $out, 'suppress', '',
-			array( 'flags' => LogEventsList::USE_REVDEL_CHECKBOXES ) );
+			array( 'flags' => LogEventsList::USE_CHECKBOXES ) );
 		}
 
 		if ( $this->mAllowed && ( $haveRevisions || $haveFiles ) ) {
@@ -1377,7 +1377,19 @@ class SpecialUndelete extends SpecialPage {
 		$out->addHTML( Xml::element( 'h2', null, $this->msg( 'history' )->text() ) . "\n" );
 
 		if ( $haveRevisions ) {
-			# The page's stored (deleted) history:
+			# The page's stored (deleted) history.
+			if ( $this->getUser()->isAllowedAll( 'deletedhistory', 'suppressrevision' ) ) {
+				$out->addHTML( Html::element(
+					'button',
+					array(
+						'name' => 'revdel',
+						'type' => 'submit',
+						'class' => 'deleterevision-log-submit mw-log-deleterevision-button'
+					),
+					$this->msg( 'showhideselectedversions' )->text()
+				) . "\n");
+			}
+
 			$out->addHTML( '<ul>' );
 			$remaining = $revisions->numRows();
 			$earliestLiveTime = $this->mTargetObj->getEarliestRevTime();
@@ -1388,10 +1400,12 @@ class SpecialUndelete extends SpecialPage {
 			}
 			$revisions->free();
 			$out->addHTML( '</ul>' );
+
+
+
 		} else {
 			$out->addWikiMsg( 'nohistory' );
 		}
-		$out->addHTML( $this->getRevisionButton( $output ) );
 
 		if ( $haveFiles ) {
 			$out->addHTML( Xml::element( 'h2', null, $this->msg( 'filehist' )->text() ) . "\n" );
@@ -1412,25 +1426,6 @@ class SpecialUndelete extends SpecialPage {
 		}
 
 		return true;
-	}
-
-	private function getRevisionButton( $formcontents ) {
-
-		if ( !$this->getUser()->isAllowedAll( 'deletedhistory', 'deletelogentry' ) ) {
-			return $formcontents;
-		}
-
-		$button = Html::element(
-			'button',
-			array(
-				'name' => 'revdel',
-				'type' => 'submit',
-				'class' => 'deleterevision-log-submit mw-log-deleterevision-button
-							mw-ui-button mw-ui-progressive'
-			),
-			$this->msg( 'showhideselectedversions' )->text()
-		) . "\n";
-		return $button . '<br><br>' . $formcontents . '<br>' . $button;
 	}
 
 	private function formatRevisionRow( $row, $earliestLiveTime, $remaining ) {
